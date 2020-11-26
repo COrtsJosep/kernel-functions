@@ -1,3 +1,4 @@
+################ PART ONE: DEFINITIONS ################
 ### EVALUATION AT POINT ###
 kernel_point <- function(ref, x, y, width, kernel,NW_lin_or_q){
   weights <- rep(0,length(y))
@@ -147,3 +148,66 @@ CI <- function(x, y, width, kernel, NW_lin_or_q, interval, times){
   }
   return(list(upper = intervals[,2], lower = intervals[,1]))
 }
+
+
+
+
+
+################ PART TWO: REPRODUCTION OF THE PLOTS ################
+### FIRST PLOT ###
+set.seed(10)
+n <- 50
+x <- seq(0,6, length = n)
+x <- c(x, rnorm(2*n/3, 3, 1))
+y <- sin(x)+rnorm(n+2*n/3, 0, 0.4)
+
+result <- LOOCV(x,y,"tri", "lin", 500,lambda_max =  2)
+plot(result$set_lambdas, result$errors, type = "l", ylim = c(0.12, 0.245), xlab = "Widths", ylab = "Associated Error", main = "Error Curves")
+points( result$optimal, min(result$errors), pch = 4, col = "blue" , cex = 2, lwd = 2)
+lines(x = c(result$optimal,result$optimal), y = c(0.12, 0.125), col = "blue", lwd = 2.5)
+
+newcurve <- function(n){
+  x <- seq(0,6, length = n)
+  x <- c(x, rnorm(2*n/3, 3, 1))
+  y <- sin(x)+rnorm(n+2*n/3, 0, 0.4)
+  result <- LOOCV(x,y,"tri", "lin", 500,lambda_max =  2)
+  lines(result$set_lambdas, result$errors)
+  points( result$optimal, min(result$errors), pch = 4, col = "blue" , cex = 2, lwd = 2)
+  lines(x = c(result$optimal,result$optimal), y = c(0.12, 0.125), col = "blue", lwd = 2.5)
+}
+replicate(4, newcurve(60))
+
+
+
+
+
+################ PART THREE: EXAMPLES OF USE ################
+n <- 60
+x <- seq(-5,5, length = n)
+y <- sin(x)+rnorm(n, 0, 0.4)
+plot(x,y)
+lines(x, sin(x))
+lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y,LOOCV(x,y,"ep", "NW", 100)$optimal  , "ep", "NW"))
+lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y,LOOCV(x,y,"ep", "lin", 100)$optimal  , "ep", "lin"), col = "blue")
+lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y,LOOCV(x,y,"ep", "q", 100)$optimal  , "ep", "q"), col = "red")
+
+data(iris)
+x <- iris$Sepal.Length
+y <- iris$Petal.Length
+plot(x,y)
+lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y,LOOCV(x,y,"gau", "lin", 100)$optimal  , "gau", "lin"), col = "black")
+CIE <- CI(x,y,LOOCV(x,y,"gau", "lin", 100)$optimal, "gau", "lin", interval = 0.01, times = 800)
+lines( seq(min(x), max(x), length = length(x)), CIE$upper, col = "blue", lty = 2)
+lines( seq(min(x), max(x), length = length(x)), CIE$lower, col = "blue", lty = 2)
+
+set.seed(9)
+n <- 50
+x <- seq(-4,6, length = n*3/4)
+x <- sort(c(x, rnorm(n/4, 2, 1.5)))
+y <- -x+2*x^2-1.5*x^3+rnorm(n, 0, 20)
+plot(x,y)
+lines(x, -x+2*x^2-1.5*x^3)
+lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y,LOOCV(x,y,"tri", "NW", 100)$optimal  , "tri", "NW"), col = "red")
+lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y,LOOCV(x,y,"tri", "lin", 100)$optimal  , "tri", "lin"), col = "blue")
+lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y,LOOCV(x,y,"tri", "q", 100)$optimal  , "tri", "q"), col = "green")
+
