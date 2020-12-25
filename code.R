@@ -11,7 +11,7 @@ kernel_point <- function(ref, x, y, width, kernel,NW_lin_or_q){
       if (u>1){ weights[i]<-0} 
       else{ 
         if (kernel == "ep"){ 
-          weights[i]<-(3/4)*((1-u)^2) 
+          weights[i]<-(3/4)*(1-u^2) 
         } else if (kernel == "tri"){ 
           weights[i]<-(70/81)*((1-abs(u)^3)^3) 
         } else if (kernel != "gau"){
@@ -85,7 +85,7 @@ LOOCV <- function(x, y, kernel, NW_lin_or_q, precision, lambda_min = max_distanc
         if (u>1){ weights[i]<-0} 
         else{ 
           if (kernel == "ep"){ 
-            weights[i]<-(3/4)*((1-u)^2) 
+            weights[i]<-(3/4)*(1-u^2) 
           } else if (kernel == "tri"){ 
             weights[i]<-(70/81)*((1-abs(u)^3)^3) 
           } else if (kernel != "gau"){
@@ -154,7 +154,74 @@ CI <- function(x, y, width, kernel, NW_lin_or_q, interval, times){
 
 
 ################ PART TWO: REPRODUCTION OF THE PLOTS ################
-### FIRST PLOT ###
+### FIRST PLOT: COMPARISON AMONG KERNEL WEIGHTS ###
+NW_weights <- function(ref, x, y, width, kernel){
+  weights <- rep(0,length(y))
+  for (i in 1:length(x)){
+    u <- abs( (ref-x[i])/width )
+    if (kernel == "gau"){
+      weights[i] <- (( 1/sqrt(2*pi) ) * exp( -(1/2)*u^2 ))
+    }
+    else {
+      if (u>1){ weights[i]<-0} 
+      else{ 
+        if (kernel == "ep"){ 
+          weights[i]<-(3/4)*(1-u^2) 
+        } else if (kernel == "tri"){ 
+          weights[i]<-(70/81)*((1-abs(u)^3)^3) 
+        } else if (kernel != "gau"){
+          return("Please select and adequate kernel: 'ep' for Epanechnikov, 'tri' for Tricube or 'gau' for Gaussian")
+        }
+      }
+    }
+  }
+  return(weights/sum(weights))
+}
+set.seed(11)
+n <- 120
+x <- seq(-2.7,2.7, length = n)
+y <- 1/(1+(exp(-x)))
+plot(seq(min(x), max(x), length = length(x)), NW_weights(0,x,y, 1, kernel = "ep"), col = "black", main = "Comparison Among Kernel Weights", xlab = "X", ylab = "Weights", ylim = c(0,0.045))
+points(seq(min(x), max(x), length = length(x)), NW_weights(0,x,y, 1, kernel = "tri"), col = "red")
+points(seq(min(x), max(x), length = length(x)), NW_weights(0,x,y, 1, kernel = "gau"), col = "blue")
+legend(1.3,0.0435, legend=c("Epanechnikov", "Tricube", "Gaussian"), col=c("black", "red", "blue"), pch = 1, cex=0.8)
+
+### SECOND PLOT: COMPARISON OF THE PERFORMANCES AMONG KERNELS ###
+set.seed(11)
+n <- 40
+x <- seq(-5,5, length = n)
+y <- 1/(1+(exp(-x))) + rnorm(n, 0, 0.1)
+plot(x,y, main = "Comparison of the Performances Among Kernels",xlab = "X", ylab = "Y")
+lines(x, 1/(1+exp(-x)),lwd = 2)
+lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y, LOOCV(x,y, "ep", "NW", 100)$optimal, "ep", "NW"), lty = 2)
+lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y, LOOCV(x,y, "tri", "NW", 100)$optimal, "tri", "NW"), lty = 2, col = "red")
+lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y, LOOCV(x,y, "gau", "NW", 100)$optimal, "gau", "NW"), lty = 2, col = "blue")
+legend(2,0.36, legend=c("True Curve", "Epanechnikov", "Tricube", "Gaussian"), col=c("black","black", "red", "blue"), lty = c(1,2,2,2), lwd = c(2,1,1,1), cex = 0.8 )
+
+### THIRD PLOT: COMPARISON BETWEEN NW AND LOCAL LINEAR REGRESSION ###
+set.seed(11)
+n <- 60
+x <- seq(-5,5, length = n*2/3)
+x <- sort(c(x, rnorm(n/3, 0, 1.7)))
+y <- cos(x)+rnorm(n,0, 0.3)
+plot(x,y, main = "Comparison Between NW and Local Linear Regression",xlab = "X", ylab = "Y")
+lines(x, cos(x))
+lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y,LOOCV(x,y,"gau", "NW", 100)$optimal  , "gau", "NW"), col = "red")
+lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y,LOOCV(x,y,"gau", "lin", 100)$optimal  , "gau", "lin"), col = "blue")
+legend(1.8,1.2, legend=c("True Curve", "Nadaraya-Watson", "Local Linear Reg."), col=c("black", "red", "blue"), lty=1, cex=0.8)
+
+### FORTH PLOT: COMPARISON BETWEEN LOCAL LINEAR AND QUADRATIC REGRESSIONS ###
+set.seed(8)
+n <- 50
+x <- seq(-4,4, length = n)
+y <- x+2*x^2+rnorm(n,0, 4)
+plot(x,y, ylim = c(-10,35), main = "Comparison Between Local Linear and Quadratic Regressions",xlab = "X", ylab = "Y")
+lines(x, x+2*x^2)
+lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y,LOOCV(x,y,"tri", "lin", 100)$optimal  , "tri", "lin"), col = "blue")
+lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y,LOOCV(x,y,"tri", "q", 100)$optimal  , "tri", "q"), col = "red")
+legend(1.45,2, legend=c("True Curve", "Local Linear Reg.", "Local Quadratic Reg."), col=c("black", "blue", "red"), lty=1, cex=0.8)
+
+### FIFTH PLOT: ERROR CURVES ###
 set.seed(10)
 n <- 50
 x <- seq(0,6, length = n)
@@ -210,4 +277,3 @@ lines(x, -x+2*x^2-1.5*x^3)
 lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y,LOOCV(x,y,"tri", "NW", 100)$optimal  , "tri", "NW"), col = "red")
 lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y,LOOCV(x,y,"tri", "lin", 100)$optimal  , "tri", "lin"), col = "blue")
 lines(seq(min(x), max(x), length = length(x)), kernel_reg(x,y,LOOCV(x,y,"tri", "q", 100)$optimal  , "tri", "q"), col = "green")
-
